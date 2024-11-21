@@ -8,16 +8,19 @@
 
 #pragma once
 
+#include "../../../../../Gems/Atom/RHI/Code/Include/Atom/RHI.Reflect/Base.h"
+#include "../../../../../Gems/Atom/RHI/Code/Include/Atom/RHI/PipelineState.h"
+#include "../../../../../Gems/Atom/RPI/Code/Include/Atom/RPI.Public/Base.h"
+#include "../../../../../Gems/Atom/RPI/Code/Include/Atom/RPI.Reflect/Base.h"
+#include "../../../AtomCore/AtomCore/Instance/Instance.h"
+
+#include "AzCore/Component/TickBus.h"
+#include "AzCore/Jobs/Job.h"
+#include "AzCore/Serialization/SerializeContext.h"
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/Entity.h>
-#include <AzCore/Memory/SystemAllocator.h>
-#include <AzCore/Debug/Trace.h>
 #include <AzCore/std/smart_ptr/shared_ptr.h>
-#include <AzCore/std/typetraits/is_pointer.h>
 #include <AzCore/Asset/AssetCommon.h>
-#include <Atom/RPI.Public/View.h>
-#include <Atom/RPI.Public/Scene.h>
-#include <Atom/RPI.Public/RenderPipeline.h>
 
 namespace AZ
 {
@@ -29,26 +32,6 @@ namespace AZ
     [[maybe_unused]] inline bool IsValid(const T* object)
     {
         return object != nullptr;
-    }
-
-    // ---------------------------------------------------------------
-    //! Validates whether a shared pointer is set.
-    //! @param smartPtr AZStd::shared_ptr to any resource.
-    //! @return True if the shared pointer contains an allocation, false if it's empty.
-    template<typename T>
-    [[maybe_unused]] inline bool IsValid(const AZStd::shared_ptr<T>& smartPtr)
-    {
-        return smartPtr != nullptr;
-    }
-
-    // ---------------------------------------------------------------
-    //! Validates whether an AZStd::unique_ptr is non-null.
-    //! @param uniquePtr AZStd::unique_ptr to be validated.
-    //! @return True if the unique pointer is non-null, false otherwise.
-    template<typename T>
-    [[maybe_unused]] inline bool IsValid(const AZStd::unique_ptr<T>& uniquePtr)
-    {
-        return uniquePtr != nullptr;
     }
 
     // ---------------------------------------------------------------
@@ -69,91 +52,6 @@ namespace AZ
     [[maybe_unused]] inline bool IsValid(const AZ::Component* component)
     {
         return component && component->GetEntity() && component->GetEntity()->GetState() == AZ::Entity::State::Active;
-    }
-
-    // ---------------------------------------------------------------
-    //! Validates whether an AZ::Data::Asset object is valid and loaded.
-    //! @param asset AZ::Data::Asset reference to be validated.
-    //! @return True if the asset is valid and ready for use, false otherwise.
-    template<typename T>
-    [[maybe_unused]] inline bool IsValid(const AZ::Data::Asset<T>& asset)
-    {
-        return asset.IsReady() && asset.GetId().IsValid();
-    }
-
-    // ---------------------------------------------------------------
-    //! Validates whether an AZ::RHI::Ptr is non-null.
-    //! @param ptr AZ::RHI::Ptr to be validated.
-    //! @return True if the pointer is non-null, false otherwise.
-    template<typename T>
-    [[maybe_unused]] inline bool IsValid(const AZ::RHI::Ptr<T>& ptr)
-    {
-        return ptr != nullptr;
-    }
-
-    // ---------------------------------------------------------------
-    //! Validates whether a RenderPipeline pointer is non-null.
-    //! @param ptr AZ::RPI::Ptr to the RenderPipeline to be validated.
-    //! @return True if the pointer is non-null, false otherwise.
-    template<typename T>
-    [[maybe_unused]] inline bool IsValid(const AZ::RPI::Ptr<T>& ptr)
-    {
-        return ptr != nullptr;
-    }
-
-    // ---------------------------------------------------------------
-    //! Validates whether a ViewPtr for rendering is non-null.
-    //! @param ptr AZ::RPI::ViewPtr to be validated.
-    //! @return True if the pointer is non-null, false otherwise.
-    [[maybe_unused]] inline bool IsValid(const AZ::RPI::ViewPtr& ptr)
-    {
-        return ptr != nullptr;
-    }
-
-    // ---------------------------------------------------------------
-    //! Validates whether a ScenePtr for rendering is non-null.
-    //! @param ptr AZ::RPI::ScenePtr to be validated.
-    //! @return True if the pointer is non-null, false otherwise.
-    [[maybe_unused]] inline bool IsValid(const AZ::RPI::ScenePtr& ptr)
-    {
-        return ptr != nullptr;
-    }
-
-    // ---------------------------------------------------------------
-    //! Validates whether a RenderPipelinePtr is non-null.
-    //! @param ptr AZ::RPI::RenderPipelinePtr to be validated.
-    //! @return True if the render pipeline pointer is non-null, false otherwise.
-    [[maybe_unused]] inline bool IsValid(const AZ::RPI::RenderPipelinePtr& ptr)
-    {
-        return ptr != nullptr;
-    }
-
-    // ---------------------------------------------------------------
-    //! Validates whether an AZ::RHI::ShaderResourceGroupPtr is non-null.
-    //! @param ptr AZ::RHI::ShaderResourceGroupPtr to be validated.
-    //! @return True if the pointer is non-null, false otherwise.
-    [[maybe_unused]] inline bool IsValid(const AZ::RHI::ShaderResourceGroupPtr& ptr)
-    {
-        return ptr != nullptr;
-    }
-
-    // ---------------------------------------------------------------
-    //! Validates whether an AZ::RHI::PipelineStatePtr is non-null.
-    //! @param ptr AZ::RHI::PipelineStatePtr to be validated.
-    //! @return True if the pipeline state pointer is non-null, false otherwise.
-    [[maybe_unused]] inline bool IsValid(const AZ::RHI::PipelineStatePtr& ptr)
-    {
-        return ptr != nullptr;
-    }
-
-    // ---------------------------------------------------------------
-    //! Validates whether a Data::Instance is non-null.
-    //! @param instance AZ::Data::Instance reference to be validated.
-    //! @return True if the instance is non-null, false otherwise.
-    template<typename T>
-    [[maybe_unused]] inline bool IsValid(const AZ::Data::Instance<T>& instance)
-    {
-        return instance != nullptr;
     }
 
     // ---------------------------------------------------------------
@@ -191,16 +89,127 @@ namespace AZ
     //! @return True if the context is non-null and ready, false otherwise.
     [[maybe_unused]] inline bool IsValid(const AZ::SerializeContext* context)
     {
-        return context && context->IsReady();
+        return context && context->GetEditContext();
+    }
+} // namespace AZ
+
+namespace AZ::Data
+{
+    // ---------------------------------------------------------------
+    //! Validates whether an AZ::Data::Asset object is valid and loaded.
+    //! @param asset AZ::Data::Asset reference to be validated.
+    //! @return True if the asset is valid and ready for use, false otherwise.
+    template<typename T>
+    [[maybe_unused]] inline bool IsValid(const AZ::Data::Asset<T>& asset)
+    {
+        return asset.IsReady() && asset.GetId().IsValid();
     }
 
     // ---------------------------------------------------------------
-    //! Validates whether an AZ::TickBus is connected.
-    //! @param tickBus AZ::TickBus reference to be validated.
-    //! @return True if the tick bus is connected, false otherwise.
-    [[maybe_unused]] inline bool IsValid(const AZ::TickBus& tickBus)
+    //! Validates whether a Data::Instance is non-null.
+    //! @param instance AZ::Data::Instance reference to be validated.
+    //! @return True if the instance is non-null, false otherwise.
+    template<typename T>
+    [[maybe_unused]] inline bool IsValid(const AZ::Data::Instance<T>& instance)
     {
-        return tickBus.IsConnected();
+        return instance != nullptr;
     }
 
-} // namespace AZ
+} // namespace AZ::Data
+
+namespace AZ::RHI
+{
+    // ---------------------------------------------------------------
+    //! Validates whether an AZ::RHI::Ptr is non-null.
+    //! @param ptr AZ::RHI::Ptr to be validated.
+    //! @return True if the pointer is non-null, false otherwise.
+    template<typename T>
+    [[maybe_unused]] inline bool IsValid(const AZ::RHI::Ptr<T>& ptr)
+    {
+        return ptr != nullptr;
+    }
+
+    // ---------------------------------------------------------------
+    //! Validates whether an AZ::RHI::ShaderResourceGroupPtr is non-null.
+    //! @param ptr AZ::RHI::ShaderResourceGroupPtr to be validated.
+    //! @return True if the pointer is non-null, false otherwise.
+    [[maybe_unused]] inline bool IsValid(const AZ::RHI::ShaderResourceGroup* ptr)
+    {
+        return ptr != nullptr;
+    }
+
+    // ---------------------------------------------------------------
+    //! Validates whether an AZ::RHI::PipelineStatePtr is non-null.
+    //! @param ptr AZ::RHI::PipelineStatePtr to be validated.
+    //! @return True if the pipeline state pointer is non-null, false otherwise.
+    [[maybe_unused]] inline bool IsValid(const AZ::RHI::PipelineState* ptr)
+    {
+        return ptr != nullptr;
+    }
+
+} // namespace AZ:RHI
+
+namespace AZ::RPI
+{
+    // ---------------------------------------------------------------
+    //! Validates whether a RenderPipeline pointer is non-null.
+    //! @param ptr AZ::RPI::Ptr to the RenderPipeline to be validated.
+    //! @return True if the pointer is non-null, false otherwise.
+    template<typename T>
+    [[maybe_unused]] inline bool IsValid(const AZ::RPI::Ptr<T>& ptr)
+    {
+        return ptr != nullptr;
+    }
+
+    // ---------------------------------------------------------------
+    //! Validates whether a ViewPtr for rendering is non-null.
+    //! @param ptr AZ::RPI::ViewPtr to be validated.
+    //! @return True if the pointer is non-null, false otherwise.
+    [[maybe_unused]] inline bool IsValid(const AZ::RPI::ViewPtr& ptr)
+    {
+        return ptr != nullptr;
+    }
+
+    // ---------------------------------------------------------------
+    //! Validates whether a ScenePtr for rendering is non-null.
+    //! @param ptr AZ::RPI::ScenePtr to be validated.
+    //! @return True if the pointer is non-null, false otherwise.
+    [[maybe_unused]] inline bool IsValid(const AZ::RPI::ScenePtr& ptr)
+    {
+        return ptr != nullptr;
+    }
+
+    // ---------------------------------------------------------------
+    //! Validates whether a RenderPipelinePtr is non-null.
+    //! @param ptr AZ::RPI::RenderPipelinePtr to be validated.
+    //! @return True if the render pipeline pointer is non-null, false otherwise.
+    [[maybe_unused]] inline bool IsValid(const AZ::RPI::RenderPipelinePtr& ptr)
+    {
+        return ptr != nullptr;
+    }
+
+} // namespace AZ::RPI
+
+namespace AZStd
+{
+    // ---------------------------------------------------------------
+    //! Validates whether a shared pointer is set.
+    //! @param smartPtr AZStd::shared_ptr to any resource.
+    //! @return True if the shared pointer contains an allocation, false if it's empty.
+    template<typename T>
+    [[maybe_unused]] inline bool IsValid(const AZStd::shared_ptr<T>& smartPtr)
+    {
+        return smartPtr != nullptr;
+    }
+
+    // ---------------------------------------------------------------
+    //! Validates whether an AZStd::unique_ptr is non-null.
+    //! @param uniquePtr AZStd::unique_ptr to be validated.
+    //! @return True if the unique pointer is non-null, false otherwise.
+    template<typename T>
+    [[maybe_unused]] inline bool IsValid(const AZStd::unique_ptr<T>& uniquePtr)
+    {
+        return uniquePtr != nullptr;
+    }
+
+} // namespace AZStd
